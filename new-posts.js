@@ -46,9 +46,6 @@ function canUseNewCommand(member) {
   return Boolean(member?.roles?.cache?.has?.(NEW_DEVELOPER_ROLE_ID));
 }
 
-function isCorrectChannel(messageOrInteraction) {
-  return messageOrInteraction?.channelId === NEW_CHANNEL_ID;
-}
 
 function baseEmbed() {
   return new EmbedBuilder()
@@ -212,14 +209,10 @@ async function handleCommand(message) {
   if (!['new', 'новое'].includes(command)) return false;
 
   if (!canUseNewCommand(message.member)) {
-    await message.reply('❌ Команда `!new` доступна только разработчикам.').catch(() => {});
+    await message.reply('❌ У вас нет роли для использования `!new`.').catch(() => {});
     return true;
   }
 
-  if (!isCorrectChannel(message)) {
-    await message.reply(`❌ Команда \`!new\` доступна только в <#${NEW_CHANNEL_ID}>.`).catch(() => {});
-    return true;
-  }
 
   cleanExpiredDrafts();
   drafts.delete(message.author.id);
@@ -295,10 +288,6 @@ async function handleInteraction(interaction) {
     return true;
   }
 
-  if (!isCorrectChannel(interaction)) {
-    if (!interaction.replied && !interaction.deferred) await interaction.reply({ content: `❌ Управление публикациями доступно только в <#${NEW_CHANNEL_ID}>.`, ephemeral: true }).catch(() => {});
-    return true;
-  }
 
   cleanExpiredDrafts();
 
