@@ -157,7 +157,7 @@ const TOOLS = {
   /** Поиск по справочнику команд бота. */
   async list_commands({ query }) {
     const clean = normalize(query);
-    if (!clean) return COMMANDS.slice(0, 4000);
+    if (!clean) return COMMANDS.slice(0, 12000);
     const lines = COMMANDS.split('\n').filter(line => normalize(line).includes(clean));
     if (!lines.length) {
       const fallback = KNOWLEDGE.split('\n').filter(line => normalize(line).includes(clean));

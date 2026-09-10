@@ -15,6 +15,7 @@ const store = require('./store');
 const KEY = 'new-posts';
 const NEW_CHANNEL_ID = '1547615885320134686';
 const NEW_DEVELOPER_ROLE_ID = '1486307269254709248';
+const NEW_PING_ROLE_ID = '1547634726989336597';
 const DRAFT_TTL_MS = 15 * 60 * 1000;
 const CHECK_INTERVAL_MS = 15 * 1000;
 const MAX_TITLE_LENGTH = 256;
@@ -162,6 +163,12 @@ async function sendPost(post, extra = {}) {
     embeds: [embed],
     allowedMentions: { parse: [] },
   });
+
+  // Пинг роли отдельным сообщением (не внутри эмбеда), чтобы уведомление сработало.
+  await channel.send({
+    content: `<@&${NEW_PING_ROLE_ID}>`,
+    allowedMentions: { roles: [NEW_PING_ROLE_ID] },
+  }).catch(error => console.error('Не удалось пингнуть роль публикации:', error.message));
 
   return sent;
 }

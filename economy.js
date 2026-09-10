@@ -1224,6 +1224,20 @@ async function handleMessage(message) {
     const target = message.mentions.users.first() || message.author;
     return profile(message, target.id, target.tag);
   }
+  if (command === 'rank' || command === 'уровень') {
+    const target = message.mentions.users.first() || message.author;
+    const progress = levelProgress(target.id);
+    const account = getUser(target.id);
+    return message.channel.send({
+      embeds: [baseEmbed(0x8b5cf6, `🏆 Уровень · ${target.globalName || target.username}`,
+        `\`${progress.bar}\` **${progress.percent}%** до следующего уровня`)
+        .addFields(
+          { name: '🏆 Уровень', value: `**${progress.level}**`, inline: true },
+          { name: '⭐ XP', value: `**${account.xp}**`, inline: true },
+          { name: '📈 Прогресс', value: `**${progress.current} / ${progress.needed}**`, inline: true },
+        )],
+    });
+  }
   if (command === 'rep') {
     const target = message.mentions.users.first();
     if (!target || target.id === message.author.id || target.bot) return message.reply('❌ Укажи другого участника: `!rep @user`');

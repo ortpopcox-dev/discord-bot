@@ -362,7 +362,7 @@ client.on('messageCreate', async (message) => {
     const e = embed(0x5865f2, '📖 Список команд', 'Все доступные команды бота:\n*Работают на русском и английском. Цель: @пинг, ID или ответ на сообщение.*')
       .addFields(
          { name: '🛡️ Модерация', value: '`!warn` `!mute` `!unmute` `!kick` `!ban` `!unban` `!purge`\n`!view-case` `!remove-case` `!punishments` `!reason`\n`!lock-down` `!slow-mode` `!deleted-message-log` `!edited-message-log`' },
-         { name: '💰 Экономика', value: '`!money` `!leaderboard` `!work` `!daily` `!weekly`\n`!collect-income` `!deposit` `!shop` `!buy` `!inventory`\n`/role-sell` `/role-unsell` `/role-listings`\n`!profile` `!rep`' },
+         { name: '💰 Экономика', value: '`!money` `!leaderboard` `!work` `!daily` `!weekly`\n`!collect` `!collect-income` `!deposit` `!shop` `!buy` `!inventory`\n`/role-sell` `/role-unsell` `/role-listings`\n`!profile` `!rep` `!rank`' },
          { name: '⚙️ Администраторы', value: '`!add-money` `!remove-money` `!reset-money` `!reset-economy`\n`!set-currency` `!economy-stats` `!enable` `!disable`\n`!permissions` `!channel-override` `!command-status`' },
          { name: '👨‍💻 Разработчики', value: '`!bot-info` `!reload` `!maintenance` `!logs` `!debug`\n`!config` `!database-stats` `!backup` `!permissions-admin`\n`!new` / `!новое` — создать публикацию' },
         { name: '🎉 Ивенты', value: '`!ивент/event` `!скоро/upcoming`\n`!event ban <ID/ник> <дней> <причина>` `!event unban <ID/ник>`' },
