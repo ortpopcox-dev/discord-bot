@@ -80,22 +80,37 @@ class RateLimitError extends Error {
   }
 }
 
+/** Модели семейства gpt-oss (openai/gpt-oss-20b и т.п.) умеют reasoning. */
+function isGptOss(model) {
+  return /gpt-oss/i.test(model || '');
+}
+
 async function requestGroq(model, messages) {
+  const payload = {
+    model,
+    messages,
+    tools: TOOL_SCHEMAS,
+    tool_choice: 'auto',
+    temperature: config.AI_TEMPERATURE,
+  };
+
+  if (isGptOss(model)) {
+    // gpt-oss использует max_completion_tokens и отдельный уровень рассуждений
+    payload.max_completion_tokens = config.AI_MAX_TOKENS;
+    payload.reasoning_effort = config.AI_REASONING_EFFORT || 'low';
+  } else {
+    payload.max_tokens = config.AI_MAX_TOKENS;
+  }
+
   const response = await fetch(GROQ_URL, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${config.GROQ_API_KEY}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      model,
-      messages,
-      tools: TOOL_SCHEMAS,
-      tool_choice: 'auto',
-      temperature: config.AI_TEMPERATURE,
-      max_tokens: config.AI_MAX_TOKENS,
-    }),
+    body: JSON.stringify(payload),
   });
+
 
   if (response.status === 429) {
     const body = await response.text();
@@ -171,7 +186,9 @@ async function askGroq(channelId, userText, userName, guild, member) {
 
     const calls = reply.tool_calls || [];
     if (!calls.length) {
-      text = (reply.content || '').trim();
+      // gpt-oss иногда кладёт ответ в reasoning или оборачивает его в <think>
+      const raw = (reply.content || '').trim() || String(reply.reasoning || '').trim();
+      text = raw.replace(/<think>[\s\S]*?<\/think>/gi, '').trim() || raw;
       break;
     }
 

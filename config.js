@@ -63,9 +63,11 @@ const config = {
   GROQ_API_KEY:     value('GROQ_API_KEY'),
   AI_ENABLED:       bool('AI_ENABLED', true),
   AI_CHANNEL_IDS:   list('AI_CHANNEL_IDS', ['1537056437115560036']),
-  AI_MODEL:         value('AI_MODEL', 'llama-3.3-70b-versatile'),
+  AI_MODEL:         value('AI_MODEL', 'openai/gpt-oss-20b'),
   // Запасные модели: используются, когда у основной кончился дневной лимит (TPD).
-  AI_FALLBACK_MODELS: list('AI_FALLBACK_MODELS', ['llama-3.1-8b-instant']),
+  AI_FALLBACK_MODELS: list('AI_FALLBACK_MODELS', ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant']),
+  // Глубина «рассуждений» для моделей gpt-oss: low | medium | high
+  AI_REASONING_EFFORT: value('AI_REASONING_EFFORT', 'low'),
   AI_TEMPERATURE:   num('AI_TEMPERATURE', 0.7),
   AI_MAX_TOKENS:    num('AI_MAX_TOKENS', 500),
   AI_HISTORY_LIMIT: num('AI_HISTORY_LIMIT', 4),
