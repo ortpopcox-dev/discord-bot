@@ -1,0 +1,12 @@
+{
+  "maintenance": false,
+  "disabledCommands": [],
+  "rolePermissions": {},
+  "userPermissions": {},
+  "channelOverrides": {},
+  "logs": {
+    "deleted": null,
+    "edited": null,
+    "money": null
+  }
+}

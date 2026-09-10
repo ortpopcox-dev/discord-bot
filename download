@@ -1,0 +1,7 @@
+.env
+economy.json
+*.log
+node_modules/
+backups/
+new-posts.json
+new-posts.json.tmp
