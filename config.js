@@ -100,6 +100,7 @@ const config = {
   ECONOMY_WEEKLY_MAX:       num('ECONOMY_WEEKLY_MAX', 3000),
   DEVELOPER_USER_IDS:       list('DEVELOPER_USER_IDS'),
   DEVELOPER_ROLE_IDS:       list('DEVELOPER_ROLE_IDS'),
+  // !new / !новое использует отдельную роль, заданную в new-posts.js.
 
   // ── Группы ролей ─────────────────────────────────────────────────────────
   ROLE: {

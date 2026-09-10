@@ -12,6 +12,7 @@ const {
 
 const DATA_FILE = path.join(__dirname, 'new-posts.json');
 const NEW_CHANNEL_ID = '1547615885320134686';
+const NEW_DEVELOPER_ROLE_ID = '1486307269254709248';
 const DRAFT_TTL_MS = 15 * 60 * 1000;
 const CHECK_INTERVAL_MS = 15 * 1000;
 const MAX_TITLE_LENGTH = 256;
@@ -41,13 +42,8 @@ function savePosts() {
   fs.renameSync(temp, DATA_FILE);
 }
 
-function isDeveloper(member, userId) {
-  const userIds = config?.DEVELOPER_USER_IDS || [];
-  const roleIds = config?.DEVELOPER_ROLE_IDS || [];
-  return Boolean(
-    userIds.includes(userId) ||
-    member?.roles?.cache?.some?.(role => roleIds.includes(role.id)),
-  );
+function canUseNewCommand(member) {
+  return Boolean(member?.roles?.cache?.has?.(NEW_DEVELOPER_ROLE_ID));
 }
 
 function isCorrectChannel(messageOrInteraction) {
@@ -215,7 +211,7 @@ async function handleCommand(message) {
   const command = (args.shift() || '').toLowerCase();
   if (!['new', 'новое'].includes(command)) return false;
 
-  if (!isDeveloper(message.member, message.author.id)) {
+  if (!canUseNewCommand(message.member)) {
     await message.reply('❌ Команда `!new` доступна только разработчикам.').catch(() => {});
     return true;
   }
@@ -294,7 +290,7 @@ async function handleInteraction(interaction) {
   if (!interaction.guild || !interaction.isButton() && !interaction.isModalSubmit()) return false;
   if (!interaction.customId.startsWith('newpost_')) return false;
 
-  if (!isDeveloper(interaction.member, interaction.user.id)) {
+  if (!canUseNewCommand(interaction.member)) {
     if (!interaction.replied && !interaction.deferred) await interaction.reply({ content: '❌ Только разработчики могут управлять публикациями.', ephemeral: true }).catch(() => {});
     return true;
   }
