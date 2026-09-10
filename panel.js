@@ -2,6 +2,7 @@ const express = require('express');
 const crypto  = require('crypto');
 const fs      = require('fs');
 const path    = require('path');
+const store   = require('./store');
 
 let _client = null;
 let _config = null;
@@ -256,8 +257,7 @@ function init(client, config, db) {
   // ── Тикеты ──────────────────────────────────────────────────────────────────
   app.get('/api/tickets', auth, (req, res) => {
     try {
-      const DB_FILE = path.join(__dirname, 'tickets.json');
-      const tickets = fs.existsSync(DB_FILE) ? JSON.parse(fs.readFileSync(DB_FILE)) : {};
+      const tickets = store.read('tickets', {}) || {};
       res.json(Object.values(tickets));
     } catch(e) { res.json([]); }
   });
@@ -267,8 +267,7 @@ function init(client, config, db) {
     try {
       const { message } = req.body;
       if (!message) return res.status(400).json({ error: 'Пустое сообщение' });
-      const DB_FILE = path.join(__dirname, 'tickets.json');
-      const tickets = fs.existsSync(DB_FILE) ? JSON.parse(fs.readFileSync(DB_FILE)) : {};
+      const tickets = store.read('tickets', {}) || {};
       const ticket  = tickets[req.params.id];
       if (!ticket) return res.status(404).json({ error: 'Тикет не найден' });
       if (ticket.status === 'closed') return res.status(400).json({ error: 'Тикет закрыт' });
@@ -287,8 +286,7 @@ function init(client, config, db) {
   // ── Заявки ──────────────────────────────────────────────────────────────────
   app.get('/api/apps', auth, (req, res) => {
     try {
-      const DB_FILE = path.join(__dirname, 'apps.json');
-      const apps    = fs.existsSync(DB_FILE) ? JSON.parse(fs.readFileSync(DB_FILE)) : {};
+      const apps = store.read('apps', {}) || {};
       res.json(Object.values(apps));
     } catch(e) { res.json([]); }
   });
@@ -298,9 +296,8 @@ function init(client, config, db) {
     try {
       const { message } = req.body;
       if (!message) return res.status(400).json({ error: 'Пустое сообщение' });
-      const DB_FILE = path.join(__dirname, 'apps.json');
-      const apps    = fs.existsSync(DB_FILE) ? JSON.parse(fs.readFileSync(DB_FILE)) : {};
-      const app     = apps[req.params.id];
+      const apps = store.read('apps', {}) || {};
+      const app  = apps[req.params.id];
       if (!app) return res.status(404).json({ error: 'Заявка не найдена' });
       const user = await _client.users.fetch(app.userId).catch(() => null);
       if (!user) return res.status(404).json({ error: 'Пользователь не найден' });

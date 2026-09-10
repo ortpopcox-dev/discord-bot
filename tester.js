@@ -22,7 +22,9 @@ const {
 const fs = require('fs');
 const path = require('path');
 
-const DB_FILE = path.join(__dirname, 'apps.json');
+const store = require('./store');
+
+const KEY = 'apps';
 let apps = {};
 let _client = null;
 let _config = null;
@@ -61,12 +63,11 @@ const POSITIONS = {
 
 // ─── Utils ───────────────────────────────────────────────────────────────────
 function load() {
-  if (fs.existsSync(DB_FILE)) {
-    try { apps = JSON.parse(fs.readFileSync(DB_FILE, 'utf8')); } catch { apps = {}; }
-  }
+  const loaded = store.read(KEY, null);
+  apps = (loaded && typeof loaded === 'object') ? loaded : {};
 }
 function save() {
-  fs.writeFileSync(DB_FILE, JSON.stringify(apps, null, 2));
+  store.write(KEY, apps);
 }
 function nextId() {
   const ids = Object.keys(apps).map(Number);

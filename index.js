@@ -6,6 +6,7 @@ const config  = require('./config');
 config.validate();
 
 const { Client, GatewayIntentBits, PermissionsBitField, EmbedBuilder, Partials, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const store   = require('./store');
 const db      = require('./database');
 const tester  = require('./tester');
 const tickets = require('./tickets');
@@ -800,7 +801,18 @@ client.once('clientReady', async () => {
   await economy.registerCommands();
 });
 
-client.login(config.TOKEN).catch(error => {
-  console.error('❌ Не удалось войти в Discord:', error.message);
-  process.exitCode = 1;
-});
+(async () => {
+  try {
+    // Сначала база данных, потом Discord: модули читают состояние при старте.
+    await store.init();
+  } catch (error) {
+    console.error('❌ Не удалось подключиться к базе данных:', error.message);
+    process.exitCode = 1;
+    return;
+  }
+
+  await client.login(config.TOKEN).catch(error => {
+    console.error('❌ Не удалось войти в Discord:', error.message);
+    process.exitCode = 1;
+  });
+})();

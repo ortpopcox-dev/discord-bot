@@ -80,6 +80,15 @@
       "mod_tag": "aselistor",
       "reason": "смени ник",
       "timestamp": 1785214387341
+    },
+    {
+      "id": 1789061532744,
+      "guild_id": "g",
+      "user_id": "u",
+      "mod_id": "m",
+      "mod_tag": "mod",
+      "reason": "тест",
+      "timestamp": 1789061532744
     }
   ],
   "punishments": [],

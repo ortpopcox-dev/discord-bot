@@ -10,7 +10,9 @@ const {
   TextInputStyle,
 } = require('discord.js');
 
-const DATA_FILE = path.join(__dirname, 'new-posts.json');
+const store = require('./store');
+
+const KEY = 'new-posts';
 const NEW_CHANNEL_ID = '1547615885320134686';
 const NEW_DEVELOPER_ROLE_ID = '1486307269254709248';
 const DRAFT_TTL_MS = 15 * 60 * 1000;
@@ -24,22 +26,14 @@ let timer = null;
 const drafts = new Map();
 
 function loadPosts() {
-  if (!fs.existsSync(DATA_FILE)) return [];
-  try {
-    const parsed = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
-    return Array.isArray(parsed) ? parsed : [];
-  } catch (error) {
-    console.error('❌ Не удалось прочитать new-posts.json:', error.message);
-    return [];
-  }
+  const parsed = store.read(KEY, null);
+  return Array.isArray(parsed) ? parsed : [];
 }
 
-let posts = loadPosts();
+let posts = [];
 
 function savePosts() {
-  const temp = `${DATA_FILE}.tmp`;
-  fs.writeFileSync(temp, JSON.stringify(posts, null, 2), 'utf8');
-  fs.renameSync(temp, DATA_FILE);
+  store.write(KEY, posts);
 }
 
 function canUseNewCommand(member) {
@@ -417,6 +411,7 @@ async function handleInteraction(interaction) {
 function init(discordClient, botConfig) {
   client = discordClient;
   config = botConfig;
+  posts = loadPosts();
 
   if (timer) clearInterval(timer);
   timer = setInterval(() => processScheduledPosts().catch(error => console.error('Ошибка планировщика публикаций:', error)), CHECK_INTERVAL_MS);

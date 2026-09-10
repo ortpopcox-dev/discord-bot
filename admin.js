@@ -223,7 +223,7 @@ async function handle(message) {
     for (const id of Object.keys(parsed.users || {})) {
       if (!members.has(id)) delete parsed.users[id];
     }
-    fs.writeFileSync(path.join(__dirname, 'economy.json'), JSON.stringify(parsed, null, 2));
+    economy.importData(parsed);
     return message.reply('✅ Из рейтинга удалены ушедшие участники.');
   }
 

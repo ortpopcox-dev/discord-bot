@@ -1,14 +1,12 @@
-const fs = require('fs');
-const path = require('path');
+const store = require('./store');
 
-const DB_FILE = path.join(__dirname, 'data.json');
+const KEY = 'data';
 
 let data = { warns: [], punishments: [], events: [], reprimands: [] };
 
 function init() {
-  if (fs.existsSync(DB_FILE)) {
-    try { data = JSON.parse(fs.readFileSync(DB_FILE, 'utf8')); } catch (e) {}
-  }
+  const loaded = store.read(KEY, null);
+  if (loaded && typeof loaded === 'object') data = loaded;
   if (!data.warns) data.warns = [];
   if (!data.punishments) data.punishments = [];
   if (!data.events) data.events = [];
@@ -19,11 +17,7 @@ function init() {
 }
 
 function save() {
-  // Атомарная запись: сначала во временный файл, потом rename.
-  // Иначе падение процесса посреди writeFileSync оставляет битый JSON.
-  const tmp = `${DB_FILE}.tmp`;
-  fs.writeFileSync(tmp, JSON.stringify(data, null, 2));
-  fs.renameSync(tmp, DB_FILE);
+  store.write(KEY, data);
 }
 
 // ID продолжаем от максимального уже существующего, а не от Date.now():

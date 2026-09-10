@@ -11,16 +11,15 @@ const {
   ButtonStyle,
   PermissionsBitField,
 } = require('discord.js');
-const fs   = require('fs');
-const path = require('path');
+const store = require('./store');
 
-const DB_FILE = path.join(__dirname, 'tickets.json');
+const KEY = 'tickets';
 let tickets  = {};
 let _client  = null;
 let _config  = null;
 
-function load() { if (fs.existsSync(DB_FILE)) { try { tickets = JSON.parse(fs.readFileSync(DB_FILE, 'utf8')); } catch(e) { tickets = {}; } } }
-function save() { fs.writeFileSync(DB_FILE, JSON.stringify(tickets, null, 2)); }
+function load() { const loaded = store.read(KEY, null); tickets = (loaded && typeof loaded === 'object') ? loaded : {}; }
+function save() { store.write(KEY, tickets); }
 function emb(color, title, desc) {
   const e = new EmbedBuilder().setColor(color).setTitle(title).setTimestamp();
   if (desc) e.setDescription(desc);

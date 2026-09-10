@@ -12,7 +12,9 @@ const {
 } = require('discord.js');
 const settings = require('./settings');
 
-const DB_FILE = path.join(__dirname, 'economy.json');
+const store = require('./store');
+
+const KEY = 'economy';
 const MAX_TEXT = 900;
 const GAME_TIMEOUT = 2 * 60 * 1000;
 
@@ -30,13 +32,8 @@ const games = new Map();
 const challenges = new Map();
 
 function load() {
-  if (fs.existsSync(DB_FILE)) {
-    try {
-      data = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
-    } catch (error) {
-      console.error('Не удалось прочитать economy.json:', error.message);
-    }
-  }
+  const loaded = store.read(KEY, null);
+  if (loaded && typeof loaded === 'object') data = loaded;
   if (!data || typeof data !== 'object') data = {};
   if (!data.users || typeof data.users !== 'object') data.users = {};
   if (!data.products || typeof data.products !== 'object') data.products = {};
@@ -48,9 +45,15 @@ function load() {
 }
 
 function save() {
-  const tmp = `${DB_FILE}.tmp`;
-  fs.writeFileSync(tmp, JSON.stringify(data, null, 2));
-  fs.renameSync(tmp, DB_FILE);
+  store.write(KEY, data);
+}
+
+// Заменить весь набор данных экономики (используется админ-командами).
+function importData(next) {
+  if (!next || typeof next !== 'object') return false;
+  data = next;
+  load();
+  return true;
 }
 
 function getUser(userId) {
@@ -1394,5 +1397,5 @@ module.exports = {
   setWorkRole, removeWorkRole, workRoles,
   getUser, money, balance, peek, totalBalance, addMoney, removeMoney,
   deposit, withdraw, setCurrency, resetUser, resetEconomy, setIncome,
-  stats, exportData, reputation, addReputation, userRank,
+  stats, exportData, importData, reputation, addReputation, userRank,
 };

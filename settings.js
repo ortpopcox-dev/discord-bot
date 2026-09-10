@@ -1,7 +1,6 @@
-const fs = require('fs');
-const path = require('path');
+const store = require('./store');
 
-const SETTINGS_FILE = path.join(__dirname, 'settings.json');
+const KEY = 'settings';
 
 let settings = {
   maintenance: false,
@@ -17,13 +16,8 @@ let settings = {
 };
 
 function load() {
-  if (fs.existsSync(SETTINGS_FILE)) {
-    try {
-      settings = { ...settings, ...JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8')) };
-    } catch (error) {
-      console.error('Не удалось прочитать settings.json:', error.message);
-    }
-  }
+  const loaded = store.read(KEY, null);
+  if (loaded && typeof loaded === 'object') settings = { ...settings, ...loaded };
   settings.disabledCommands = Array.isArray(settings.disabledCommands) ? settings.disabledCommands : [];
   settings.rolePermissions = settings.rolePermissions || {};
   settings.userPermissions = settings.userPermissions || {};
@@ -33,9 +27,7 @@ function load() {
 }
 
 function save() {
-  const temp = `${SETTINGS_FILE}.tmp`;
-  fs.writeFileSync(temp, JSON.stringify(settings, null, 2));
-  fs.renameSync(temp, SETTINGS_FILE);
+  store.write(KEY, settings);
 }
 
 function normalize(command) {
