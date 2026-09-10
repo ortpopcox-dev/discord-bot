@@ -70,6 +70,34 @@ function canReprimand(member) {
   return hasRole(member, ROLE.REPRIMAND) || isDirector(member);
 }
 
+// ─── Система выговоров (3 типа) ─────────────────────────────────────────────
+const REPRIMAND_CHANNEL_ID      = '1538927050193244180';
+const REPRIMAND_REMOVED_ROLE_ID = '1479026754483130458';
+const REPRIMAND_STRIP_ROLE_IDS  = ['1547489840130560050', '1478315419432386560', '1317767382780870706'];
+const REPRIMAND_CMD_ROLE_IDS    = ['1486307269254709248', '1478319008368295977', '1291703538648354867', '1291703232212500510'];
+
+const REPRIMAND_TYPES = {
+  'ус': { key: 'ус', name: 'Устный пред',     days: 7,  max: 4 },
+  'вг': { key: 'вг', name: 'Выговор',         days: 14, max: 3 },
+  'ст': { key: 'ст', name: 'Строгий выговор', days: 30, max: 2 },
+};
+
+const REPRIMAND_ALIASES = {
+  'ус': 'ус', 'устный': 'ус', 'у': 'ус', 'oral': 'ус',
+  'вг': 'вг', 'выговор': 'вг', 'в': 'вг', 'обычный': 'вг',
+  'ст': 'ст', 'строгий': 'ст', 'с': 'ст', 'strict': 'ст',
+};
+
+function resolveReprimandType(raw) {
+  if (!raw) return null;
+  return REPRIMAND_TYPES[REPRIMAND_ALIASES[raw.toLowerCase()]] || null;
+}
+
+function canUseReprimandCmd(member) {
+  return hasRole(member, REPRIMAND_CMD_ROLE_IDS) || canReprimand(member);
+}
+
+
 function canReviewApps(member) {
   return isDirector(member) || hasRole(member, ROLE.APPS);
 }
@@ -340,7 +368,8 @@ client.on('messageCreate', async (message) => {
         { name: '📊 Разное', value: '`!опрос/poll` `!инфо/info` `!стат/stat`' },
         { name: '📋 Заявки', value: '`!заявки-меню` `!заявки`' },
         { name: '🎫 Тикеты', value: '`!тикет-меню`' },
-        { name: '💡 Примеры', value: '`!выговор @юзер 14 нарушение правил` *(14 дней)*\n`!выговор @юзер 2д нарушение` *(2 дня)*\n`!мут @юзер 1ч спам`\n`!ban 123456789 1d flood`' },
+        { name: '💡 Примеры', value: '`!выговор ус @юзер причина` *(Устный пред — 7 дней, 4 = снятие)*\n`!выговор вг @юзер причина` *(Выговор — 14 дней, 3 = снятие)*\n`!выговор ст @юзер причина` *(Строгий — 30 дней, 2 = снятие)*\n`!мут @юзер 1ч спам`\n`!ban 123456789 1d flood`' },
+
       );
     return message.channel.send({ embeds: [e] });
   }
@@ -394,39 +423,67 @@ client.on('messageCreate', async (message) => {
   }
 
   if (cmd === 'выговор' || cmd === 'reprimand') {
-    if (!canReprimand(member)) return message.reply('❌ Нет прав! Выговоры могут давать только директор и зам.');
-    const t = await resolveTarget(message, args);
-    if (!t || !t.member) return message.reply('❌ Укажи пользователя: `!выговор @юзер [время] [причина]` или ответь на сообщение');
-    const restArgs = shiftTarget(args);
-    let duration = parseDuration(restArgs[0] || '');
-    if (!duration && restArgs[0] && /^\d+$/.test(restArgs[0])) {
-      duration = parseInt(restArgs[0]) * 86400000;
+    if (!canUseReprimandCmd(member)) return message.reply('❌ Нет прав на выдачу выговоров.');
+
+    const type = resolveReprimandType(args[0]);
+    if (!type) {
+      return message.reply('❌ Укажи тип: `!выговор ус|вг|ст @юзер причина`\n`ус` — Устный пред (7 дней), `вг` — Выговор (14 дней), `ст` — Строгий выговор (30 дней)');
     }
-    const reason = duration ? restArgs.slice(1).join(' ') || 'Без причины' : restArgs.join(' ') || 'Без причины';
-    const expiresAt = duration ? Date.now() + duration : null;
-    const repCount = db.addReprimand(guild.id, t.id, message.author.id, message.author.tag, reason, expiresAt);
-    const durationText = duration ? formatDuration(duration) : '∞ (постоянный)';
-    const e = embed(0xff7f00, '📢 Выговор', `**${t.user.tag}** получил выговор`)
+
+    const rest = args.slice(1);
+    const t = await resolveTarget(message, rest);
+    if (!t || !t.id) return message.reply('❌ Укажи пользователя: `!выговор ус @юзер причина`');
+
+    const reason = shiftTarget(rest).join(' ') || 'Без причины';
+    const expiresAt = Date.now() + type.days * 86400000;
+    db.addReprimand(guild.id, t.id, message.author.id, message.author.tag, reason, expiresAt, type.key);
+
+    const count = db.countReprimandsByKind(guild.id, t.id, type.key);
+    const score = `${type.name} (${count}/${type.max})`;
+    const reached = count >= type.max;
+
+    const channel = guild.channels.cache.get(REPRIMAND_CHANNEL_ID)
+      || await guild.channels.fetch(REPRIMAND_CHANNEL_ID).catch(() => null);
+
+    const text = `<@${t.id}> получает выговор ${score} за ${reason}`;
+    if (channel) await channel.send({ content: text, allowedMentions: { users: [t.id] } }).catch(() => {});
+
+    if (reached) {
+      if (channel) {
+        await channel.send({ content: `${text} Снятие`, allowedMentions: { users: [t.id] } }).catch(() => {});
+      }
+      const target = t.member || await guild.members.fetch(t.id).catch(() => null);
+      if (target) {
+        for (const rid of REPRIMAND_STRIP_ROLE_IDS) {
+          if (target.roles.cache.has(rid)) await target.roles.remove(rid).catch(() => {});
+        }
+        await target.roles.add(REPRIMAND_REMOVED_ROLE_ID).catch(() => {});
+      }
+      db.clearReprimandsByKind(guild.id, t.id, type.key);
+    }
+
+    const e = embed(0xff7f00, '📢 Выговор', `<@${t.id}> получает выговор **${score}**`)
       .addFields(
-        { name: 'Причина', value: reason, inline: true },
-        { name: 'Срок', value: durationText, inline: true },
+        { name: 'Тип', value: type.name, inline: true },
+        { name: 'Снимается через', value: `${type.days} дн.`, inline: true },
         { name: 'Модератор', value: message.author.tag, inline: true },
-        { name: 'Всего выговоров', value: `${repCount}`, inline: true },
-        ...(expiresAt ? [{ name: 'Истекает', value: `<t:${Math.floor(expiresAt/1000)}:F>`, inline: true }] : [])
+        { name: 'Причина', value: reason, inline: false },
+        ...(reached ? [{ name: '🚨 Снятие', value: 'Лимит достигнут — роли сняты, выдана роль снятия.', inline: false }] : []),
       );
     message.channel.send({ embeds: [e] });
     await sendLog(guild, e);
-    await t.user.send({ embeds: [embed(0xff7f00, '📢 Вы получили выговор', `Вы получили выговор на сервере **${guild.name}**`)
+
+    if (t.user) await t.user.send({ embeds: [embed(0xff7f00, '📢 Вы получили выговор', `Сервер **${guild.name}**`)
       .addFields(
-        { name: '📋 Причина', value: reason, inline: true },
-        { name: '⏱️ Срок', value: durationText, inline: true },
+        { name: '📋 Тип', value: score, inline: true },
+        { name: '⏱️ Снимается через', value: `${type.days} дн.`, inline: true },
         { name: '👤 Модератор', value: message.author.tag, inline: true },
-        { name: '📊 Всего выговоров', value: `${repCount}`, inline: true },
-        ...(expiresAt ? [{ name: '📅 Истекает', value: `<t:${Math.floor(expiresAt/1000)}:F>`, inline: true }] : [])
-      )
-      .setFooter({ text: 'Выговор не влияет на счётчик предупреждений' })] }).catch(() => {});
+        { name: '📝 Причина', value: reason, inline: false },
+        ...(reached ? [{ name: '🚨 Снятие', value: 'Вы сняты с должности.', inline: false }] : []),
+      )] }).catch(() => {});
     return;
   }
+
 
   if (cmd === 'выговоры' || cmd === 'reprimands') {
     const t = await resolveTarget(message, args);

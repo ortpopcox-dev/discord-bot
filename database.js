@@ -169,11 +169,25 @@ function updateEvent(id, fields) {
 
 // ─── Reprimands ───────────────────────────────────────────────────────────────
 
-function addReprimand(guildId, userId, modId, modTag, reason, expiresAt = null) {
-  data.reprimands.push({ id: nextId(), guild_id: guildId, user_id: userId, mod_id: modId, mod_tag: modTag, reason, expires_at: expiresAt, timestamp: Date.now() });
+function addReprimand(guildId, userId, modId, modTag, reason, expiresAt = null, kind = null) {
+  data.reprimands.push({ id: nextId(), guild_id: guildId, user_id: userId, mod_id: modId, mod_tag: modTag, reason, expires_at: expiresAt, kind, timestamp: Date.now() });
   save();
   return data.reprimands.filter(r => r.guild_id === guildId && r.user_id === userId).length;
 }
+
+// Кол-во активных выговоров конкретного типа (ус / вг / ст)
+function countReprimandsByKind(guildId, userId, kind) {
+  return data.reprimands.filter(r => r.guild_id === guildId && r.user_id === userId && r.kind === kind).length;
+}
+
+// Обнуление группы выговоров (после снятия)
+function clearReprimandsByKind(guildId, userId, kind) {
+  const before = data.reprimands.length;
+  data.reprimands = data.reprimands.filter(r => !(r.guild_id === guildId && r.user_id === userId && r.kind === kind));
+  save();
+  return before - data.reprimands.length;
+}
+
 
 function getReprimands(guildId, userId) {
   return data.reprimands.filter(r => r.guild_id === guildId && r.user_id === userId).sort((a, b) => b.timestamp - a.timestamp);
@@ -210,4 +224,6 @@ module.exports = {
   getExpiredPunishments, getActivePunishments,
   addEvent, getUpcomingEvents, getAllActiveEvents, getEventById, updateEvent,
   addReprimand, getReprimands, getAllReprimands, removeReprimand, getExpiredReprimands, removeReprimandById,
+  countReprimandsByKind, clearReprimandsByKind,
+
 };
