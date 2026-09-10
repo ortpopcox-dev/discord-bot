@@ -238,17 +238,13 @@ function row(...buttons) {
   return new ActionRowBuilder().addComponents(buttons);
 }
 
-function gameButtons(type, id, game = null) {
+function gameButtons(type, id) {
   if (type === 'bj') {
-    const canDouble = !!game && game.player?.length === 2 && !game.doubled;
-    const buttons = [
-      button(`eco:bj:hit:${id}`, '🃏 Взять карту', ButtonStyle.Success),
-      button(`eco:bj:stand:${id}`, '✋ Хватит', ButtonStyle.Secondary),
-    ];
-    if (canDouble || !game) buttons.push(button(`eco:bj:double:${id}`, '💰 Удвоить', ButtonStyle.Primary));
-    return row(...buttons);
+    return row(
+      button(`eco:bj:hit:${id}`, 'Взять карту', ButtonStyle.Primary),
+      button(`eco:bj:stand:${id}`, 'Остановиться', ButtonStyle.Secondary),
+    );
   }
-
   if (type === 'cf') {
     return row(
       button(`eco:cf:heads:${id}`, 'Орёл', ButtonStyle.Primary),
@@ -946,82 +942,13 @@ async function registerCommands() {
   }
 }
 
-// ── Блэкджек: настоящая колода, тузы и красивое оформление ─────────────────
-const BJ_RANKS = [
-  { rank: 'A', value: 11 }, { rank: '2', value: 2 }, { rank: '3', value: 3 },
-  { rank: '4', value: 4 }, { rank: '5', value: 5 }, { rank: '6', value: 6 },
-  { rank: '7', value: 7 }, { rank: '8', value: 8 }, { rank: '9', value: 9 },
-  { rank: '10', value: 10 }, { rank: 'J', value: 10 }, { rank: 'Q', value: 10 },
-  { rank: 'K', value: 10 },
-];
-const BJ_SUITS = ['♠', '♥', '♦', '♣'];
-const BJ_HIDDEN = '`🂠`';
-
 function randomCard() {
-  const face = BJ_RANKS[randomInt(0, BJ_RANKS.length - 1)];
-  const suit = BJ_SUITS[randomInt(0, BJ_SUITS.length - 1)];
-  return { rank: face.rank, suit, value: face.value };
+  return randomInt(1, 11);
 }
 
 function blackjackTotal(cards) {
-  let total = 0;
-  let aces = 0;
-  for (const card of cards) {
-    const value = typeof card === 'number' ? card : card.value;
-    total += value;
-    if ((typeof card === 'number' ? card : card.rank) === 'A') aces += 1;
-  }
-  while (total > 21 && aces > 0) { total -= 10; aces -= 1; }
+  let total = cards.reduce((sum, card) => sum + card, 0);
   return total;
-}
-
-function cardText(card) {
-  return `\`${card.rank}${card.suit}\``;
-}
-
-function handText(cards) {
-  return cards.map(cardText).join(' ');
-}
-
-/** Полоска-индикатор «насколько близко к 21». */
-function bjBar(total) {
-  const filled = Math.max(0, Math.min(10, Math.round((total / 21) * 10)));
-  return `${'▰'.repeat(filled)}${'▱'.repeat(10 - filled)}`;
-}
-
-function bjEmbed(game, { reveal = false, color = 0x2b2d31, title = '🃏 Блэкджек', status = '' } = {}) {
-  const playerTotal = blackjackTotal(game.player);
-  const dealerCards = reveal ? handText(game.dealer) : `${cardText(game.dealer[0])} ${BJ_HIDDEN}`;
-  const dealerTotal = reveal ? blackjackTotal(game.dealer) : '?';
-
-  const embed = baseEmbed(color, title, status || '_Набери 21 или больше дилера — но не перебери._')
-    .addFields(
-      {
-        name: '🧑 Твои карты',
-        value: `${handText(game.player)}\n**${playerTotal}** очков\n${bjBar(playerTotal)}`,
-        inline: true,
-      },
-      {
-        name: '🎩 Дилер',
-        value: `${dealerCards}\n**${dealerTotal}** очков\n${reveal ? bjBar(blackjackTotal(game.dealer)) : '▱▱▱▱▱▱▱▱▱▱'}`,
-        inline: true,
-      },
-      { name: '💵 Ставка', value: `**${money(game.bet)}**`, inline: false },
-    )
-    .setFooter({ text: reveal ? 'Игра завершена' : 'Взять карту • Хватит • Удвоить' });
-  return embed;
-}
-
-/** Завершение партии с красивым эмбедом вместо текста. */
-function finishBjGame(id, payout, game, { color, title, status }) {
-  const pending = games.get(id);
-  if (!pending) return;
-  clearTimeout(pending.timer);
-  games.delete(id);
-  if (payout > 0) credit(pending.userId, payout);
-  const embed = bjEmbed(game, { reveal: true, color, title, status })
-    .addFields({ name: '👛 Баланс', value: `**${money(balance(pending.userId))}**`, inline: false });
-  return game.message.edit({ content: '', embeds: [embed], components: [] }).catch(() => {});
 }
 
 async function blackjack(message, bet) {
@@ -1031,15 +958,10 @@ async function blackjack(message, bet) {
   const playerTotal = blackjackTotal(game.player);
   if (playerTotal === 21) {
     const payout = Math.floor(bet * 2.5);
-    game.message = await message.channel.send({ embeds: [bjEmbed(game)] });
-    return finishBjGame(id, payout, game, {
-      color: 0xf1c40f,
-      title: '🃏 Блэкджек — 21 с раздачи!',
-      status: `✨ Натуральный блэкджек! Выплата **${money(payout)}** (x2.5).`,
-    });
+    return finishGame(id, payout, `🃏 Blackjack! Ты набрал **21** и получил **${money(payout)}**. Баланс: **${money(balance(message.author.id) + payout)}**`, message, { reply: true });
   }
   game.message = await message.channel.send({
-    embeds: [bjEmbed(game, { color: 0x5865f2 })],
+    embeds: [baseEmbed(0x5865f2, '🃏 Blackjack', `Твои карты: **${game.player.join(' + ')} = ${playerTotal}**\nКарта дилера: **${game.dealer[0]} + ?**\n\nСтавка: **${money(bet)}**`)],
     components: [gameButtons('bj', id)],
   });
 }
@@ -1047,26 +969,14 @@ async function blackjack(message, bet) {
 async function finishBlackjack(interaction, game, id) {
   const playerTotal = blackjackTotal(game.player);
   if (playerTotal > 21) {
-    return finishBjGame(id, 0, game, {
-      color: 0xed4245,
-      title: '🃏 Блэкджек — перебор',
-      status: `💥 У тебя **${playerTotal}**. Ставка **${money(game.bet)}** сгорела.`,
-    });
+    return finishGame(id, 0, `💥 Перебор: **${playerTotal}**. Ты проиграл **${money(game.bet)}**.`, game.message);
   }
   while (blackjackTotal(game.dealer) < 17) game.dealer.push(randomCard());
   const dealerTotal = blackjackTotal(game.dealer);
   const payout = playerTotal > dealerTotal || dealerTotal > 21 ? game.bet * 2 : playerTotal === dealerTotal ? game.bet : 0;
-  const push = payout === game.bet && playerTotal === dealerTotal;
-  const status = push
-    ? `🤝 Ничья. Ставка **${money(game.bet)}** возвращена.`
-    : payout
-      ? `🎉 Победа! Выигрыш **${money(payout)}**.${dealerTotal > 21 ? ' Дилер перебрал.' : ''}`
-      : `❌ Дилер сильнее. Ты потерял **${money(game.bet)}**.`;
-  return finishBjGame(id, payout, game, {
-    color: push ? 0x99aab5 : payout ? 0x57f287 : 0xed4245,
-    title: push ? '🃏 Блэкджек — ничья' : payout ? '🃏 Блэкджек — победа' : '🃏 Блэкджек — поражение',
-    status,
-  });
+  const result = payout === game.bet ? `🤝 Ничья. Ставка **${money(game.bet)}** возвращена.` :
+    payout ? `🎉 Победа! Ты получил **${money(payout)}**.` : `❌ Ты проиграл **${money(game.bet)}**.`;
+  finishGame(id, payout, `🃏 Blackjack\nТвои карты: **${game.player.join(' + ')} = ${playerTotal}**\nКарты дилера: **${game.dealer.join(' + ')} = ${dealerTotal}**\n${result}\nБаланс: **${money(balance(game.userId))}**`, game.message);
 }
 
 async function handleGameButton(interaction) {
@@ -1137,35 +1047,14 @@ async function handleGameButton(interaction) {
   }
   await interaction.deferUpdate();
   if (type === 'bj') {
-    if (action === 'hit' || action === 'double') {
-      if (action === 'double') {
-        if (game.player.length !== 2 || game.doubled) {
-          return interaction.followUp({ content: '❌ Удвоить можно только на первых двух картах.', ephemeral: true }).catch(() => {});
-        }
-        if (!debit(game.userId, game.bet)) {
-          return interaction.followUp({ content: '❌ Не хватает монет, чтобы удвоить ставку.', ephemeral: true }).catch(() => {});
-        }
-        game.bet *= 2;
-        game.doubled = true;
-      }
+    if (action === 'hit') {
       game.player.push(randomCard());
       const total = blackjackTotal(game.player);
-      if (total > 21) {
-        return finishBjGame(id, 0, game, {
-          color: 0xed4245,
-          title: '🃏 Блэкджек — перебор',
-          status: `💥 У тебя **${total}**. Ставка **${money(game.bet)}** сгорела.`,
-        });
-      }
-      if (action === 'double' || total === 21) return finishBlackjack(interaction, game, id);
-      return game.message.edit({
-        embeds: [bjEmbed(game, { color: 0x5865f2, status: `🂠 Карта взята — теперь у тебя **${total}**.` })],
-        components: [gameButtons('bj', id, game)],
-      }).catch(() => {});
+      if (total > 21) return finishGame(id, 0, `💥 Перебор: **${total}**. Ты проиграл **${money(game.bet)}**.`, game.message);
+      return game.message.edit({ embeds: [baseEmbed(0x5865f2, '🃏 Blackjack', `Твои карты: **${game.player.join(' + ')} = ${total}**\nКарта дилера: **${game.dealer[0]} + ?**\n\nСтавка: **${money(game.bet)}**`)], components: [gameButtons('bj', id)] }).catch(() => {});
     }
     return finishBlackjack(interaction, game, id);
   }
-
   if (type === 'cf') {
     const result = randomInt(0, 1) === 0 ? 'heads' : 'tails';
     const win = action === result;
